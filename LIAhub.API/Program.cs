@@ -2,6 +2,7 @@ using LIAhub.Infrastructure.Data;
 using LIAhub.Infrastructure.Services;
 using LIAhub.Infrastructure.BackgroundJobs;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,7 +16,26 @@ builder.Services.AddHttpClient<JobSearchService>();
 // Background Jobs
 builder.Services.AddHostedService<JobFetcherService>();
 
-// CORS - tillåt React-frontend
+// JWT Authentication via Supabase JWKS
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        var supabaseUrl = builder.Configuration["Supabase:Url"];
+        options.Authority = $"{supabaseUrl}/auth/v1";
+        options.MetadataAddress = $"{supabaseUrl}/auth/v1/.well-known/openid-configuration";
+        options.TokenValidationParameters = new()
+        {
+            ValidateIssuer = true,
+            ValidIssuer = $"{supabaseUrl}/auth/v1",
+            ValidateAudience = false,
+            ValidateLifetime = true
+        };
+        options.RequireHttpsMetadata = false;
+    });
+
+builder.Services.AddAuthorization();
+
+// CORS - allow React frontend
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
@@ -43,6 +63,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
