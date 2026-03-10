@@ -1,3 +1,4 @@
+namespace LIAhub.Core.Models;
 public class Application
 {
     public Guid Id { get; set; }

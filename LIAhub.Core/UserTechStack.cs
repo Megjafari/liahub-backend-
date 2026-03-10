@@ -1,3 +1,4 @@
+namespace LIAhub.Core.Models;
 public class UserTechStack
 {
     public Guid Id { get; set; }

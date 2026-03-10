@@ -1,3 +1,4 @@
+namespace LIAhub.Core.Models;
 public class NotificationSetting
 {
     public Guid Id { get; set; }

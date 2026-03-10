@@ -1,3 +1,4 @@
+namespace LIAhub.Core.Models;
 public class SavedJob
 {
     public Guid Id { get; set; }
