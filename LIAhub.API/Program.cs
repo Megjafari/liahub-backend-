@@ -1,4 +1,6 @@
 using LIAhub.Infrastructure.Data;
+using LIAhub.Infrastructure.Services;
+using LIAhub.Infrastructure.BackgroundJobs;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -6,6 +8,12 @@ var builder = WebApplication.CreateBuilder(args);
 // Database
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Services
+builder.Services.AddHttpClient<JobSearchService>();
+
+// Background Jobs
+builder.Services.AddHostedService<JobFetcherService>();
 
 // CORS - tillåt React-frontend
 builder.Services.AddCors(options =>
