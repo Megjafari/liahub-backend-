@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="LIAhub.API/LIAhub.API.csproj" />
+  <Project Path="LIAhub.Core/LIAhub.Core.csproj" />
+  <Project Path="LIAhub.Infrastructure/LIAhub.Infrastructure.csproj" />
+</Solution>
