@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using LIAhub.Core.Models;
 
 namespace LIAhub.Infrastructure.Services;
@@ -15,33 +16,104 @@ public class JobSearchService
 
     public async Task<List<CachedJob>> FetchLiaJobsAsync()
     {
-        var keywords = "LIA praktik systemutvecklare .NET";
-        var url = $"{BaseUrl}/search?q={Uri.EscapeDataString(keywords)}&limit=100";
+        var allJobs = new List<CachedJob>();
 
-        var response = await _httpClient.GetAsync(url);
-        response.EnsureSuccessStatusCode();
-
-        var json = await response.Content.ReadAsStringAsync();
-        var result = JsonSerializer.Deserialize<JobSearchResponse>(json, new JsonSerializerOptions
+        // Search with multiple keyword combinations to maximize results
+        var searchQueries = new[]
         {
-            PropertyNameCaseInsensitive = true
-        });
+            "LIA systemutvecklare",
+            "LIA utvecklare",
+            "praktik systemutvecklare",
+            "praktik utvecklare",
+            "internship developer",
+            "LIA .NET",
+            "LIA backend",
+            "LIA frontend"
+        };
 
-        if (result?.Hits == null) return new List<CachedJob>();
-
-        return result.Hits.Select(hit => new CachedJob
+        foreach (var keyword in searchQueries)
         {
-            Id = Guid.NewGuid(),
-            ExternalId = hit.Id,
-            Title = hit.Headline ?? string.Empty,
-            Employer = hit.Employer?.Name ?? string.Empty,
-            City = hit.WorkplaceAddress?.City,
-            Description = hit.Description?.Text,
-            TechTags = ExtractTechTags(hit.Description?.Text),
-            Url = hit.WebPage ?? $"https://arbetsformedlingen.se/platsbanken/annonser/{hit.Id}",
-            FetchedAt = DateTime.UtcNow,
-            ExpiresAt = DateTime.UtcNow.AddHours(6)
-        }).ToList();
+            var offset = 0;
+            var limit = 100;
+            var hasMore = true;
+
+            while (hasMore)
+            {
+                var url = $"{BaseUrl}/search?q={Uri.EscapeDataString(keyword)}&limit={limit}&offset={offset}";
+
+                var response = await _httpClient.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+
+                var json = await response.Content.ReadAsStringAsync();
+                var result = JsonSerializer.Deserialize<JobSearchResponse>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                // Stop if no results returned
+                if (result?.Hits == null || result.Hits.Count == 0)
+                {
+                    hasMore = false;
+                    break;
+                }
+
+                var filteredJobs = result.Hits
+                    // Filter out anything that is not a real LIA/internship listing
+                    .Where(hit => IsLiaJob(hit.Headline, hit.Description?.Text))
+                    // Avoid duplicates from overlapping searches
+                    .Where(hit => allJobs.All(j => j.ExternalId != hit.Id))
+                    .Select(hit => new CachedJob
+                    {
+                        Id = Guid.NewGuid(),
+                        ExternalId = hit.Id,
+                        Title = hit.Headline ?? string.Empty,
+                        Employer = hit.Employer?.Name ?? string.Empty,
+                        City = hit.WorkplaceAddress?.City,
+                        Description = hit.Description?.Text,
+                        // Extract which technologies are mentioned in the listing
+                        TechTags = ExtractTechTags(hit.Description?.Text),
+                        Url = hit.WebPage ?? $"https://arbetsformedlingen.se/platsbanken/annonser/{hit.Id}",
+                        FetchedAt = DateTime.UtcNow,
+                        // Cache the listing for 6 hours, then fetch fresh data
+                        ExpiresAt = DateTime.UtcNow.AddHours(6)
+                    }).ToList();
+
+                allJobs.AddRange(filteredJobs);
+
+                // If we got fewer than limit, there are no more pages
+                if (result.Hits.Count < limit)
+                    hasMore = false;
+                else
+                    offset += limit;
+            }
+        }
+
+        return allJobs;
+    }
+
+    private bool IsLiaJob(string? title, string? description)
+    {
+        var titleText = (title ?? string.Empty).ToLower();
+        var fullText = $"{title} {description}".ToLower();
+
+        // Match "lia" as a whole word — not part of "reliability" or "compliance"
+        bool liaInTitle = Regex.IsMatch(titleText, @"\blia\b") ||
+                          titleText.Contains("lärande i arbete") ||
+                          titleText.Contains("praktik") ||
+                          titleText.Contains("praktikant") ||
+                          titleText.Contains("internship");
+
+        // If the listing contains these words it is likely not a student position
+        var excludeKeywords = new[]
+        {
+            "senior", "erfaren", "minst 3 år", "minst 5 år",
+            "experienced", "at least 3 years", "at least 5 years"
+        };
+
+        bool isSenior = excludeKeywords.Any(k => fullText.Contains(k));
+
+        // Listing is relevant only if it has a LIA keyword AND is not a senior position
+        return liaInTitle && !isSenior;
     }
 
     private List<string> ExtractTechTags(string? description)
@@ -49,9 +121,25 @@ public class JobSearchService
         if (string.IsNullOrEmpty(description)) return new List<string>();
 
         var tags = new List<string>();
-        var keywords = new[] { ".NET", "C#", "React", "TypeScript", "JavaScript", "Java", "Python", "Azure", "SQL", "Angular" };
 
-        foreach (var keyword in keywords)
+        // Full list of technologies — users will later filter listings by these via their profile
+        var techKeywords = new[]
+        {
+            // .NET ecosystem
+            ".NET", "C#", "ASP.NET", "Blazor", "Entity Framework", "MAUI",
+            // Frontend
+            "React", "Angular", "Vue", "TypeScript", "JavaScript", "HTML", "CSS",
+            // Backend
+            "Java", "Python", "Node.js", "PHP", "Go", "Rust", "Kotlin",
+            // Database
+            "SQL", "PostgreSQL", "MySQL", "MongoDB", "Redis", "SQLite",
+            // Cloud & DevOps
+            "Azure", "AWS", "Docker", "Kubernetes", "CI/CD", "GitHub Actions",
+            // Other
+            "REST", "API", "Git", "Linux", "Scrum", "Agile"
+        };
+
+        foreach (var keyword in techKeywords)
         {
             if (description.Contains(keyword, StringComparison.OrdinalIgnoreCase))
                 tags.Add(keyword);
@@ -61,7 +149,7 @@ public class JobSearchService
     }
 }
 
-// Response models
+// Models for deserializing the response from the JobSearch API
 public class JobSearchResponse
 {
     public List<JobHit>? Hits { get; set; }
