@@ -3,6 +3,7 @@ using LIAhub.Infrastructure.Services;
 using LIAhub.Infrastructure.BackgroundJobs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Resend;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,6 +13,10 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // Services
 builder.Services.AddHttpClient<JobSearchService>();
+builder.Services.AddScoped<NotificationService>();
+builder.Services.Configure<ResendClientOptions>(options =>
+    options.ApiToken = builder.Configuration["Resend:ApiKey"]!);
+builder.Services.AddTransient<IResend, ResendClient>();
 
 // Background Jobs
 builder.Services.AddHostedService<JobFetcherService>();
