@@ -1,4 +1,5 @@
 namespace LIAhub.Core.Models;
+
 public class CachedJob
 {
     public Guid Id { get; set; }
@@ -8,6 +9,9 @@ public class CachedJob
     public string? City { get; set; }
     public string? Description { get; set; }
     public List<string> TechTags { get; set; } = new();
+    public List<string> StudentSignals { get; set; } = new();
+    public List<string> NegativeSignals { get; set; } = new();
+    public int RelevanceScore { get; set; }
     public string Url { get; set; } = string.Empty;
     public DateTime FetchedAt { get; set; } = DateTime.UtcNow;
     public DateTime ExpiresAt { get; set; }
