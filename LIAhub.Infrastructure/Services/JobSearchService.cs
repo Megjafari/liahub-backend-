@@ -21,14 +21,16 @@ public class JobSearchService
         // Search with multiple keyword combinations to maximize results
         var searchQueries = new[]
         {
-            "LIA systemutvecklare",
-            "LIA utvecklare",
-            "praktik systemutvecklare",
-            "praktik utvecklare",
-            "internship developer",
-            "LIA .NET",
-            "LIA backend",
-            "LIA frontend"
+            "systemutvecklare praktik",
+            "webbutvecklare praktik",
+            "utvecklare junior",
+            "developer internship",
+            "mjukvaruutvecklare student",
+            ".NET junior",
+            "React junior",
+            "backend junior",
+            "frontend junior",
+            "LIA utvecklare"
         };
 
         foreach (var keyword in searchQueries)
@@ -58,25 +60,36 @@ public class JobSearchService
                 }
 
                 var filteredJobs = result.Hits
-                    // Filter out anything that is not a real LIA/internship listing
-                    .Where(hit => IsLiaJob(hit.Headline, hit.Description?.Text))
                     // Avoid duplicates from overlapping searches
                     .Where(hit => allJobs.All(j => j.ExternalId != hit.Id))
-                    .Select(hit => new CachedJob
+                    .Select(hit =>
                     {
-                        Id = Guid.NewGuid(),
-                        ExternalId = hit.Id,
-                        Title = hit.Headline ?? string.Empty,
-                        Employer = hit.Employer?.Name ?? string.Empty,
-                        City = hit.WorkplaceAddress?.City,
-                        Description = hit.Description?.Text,
-                        // Extract which technologies are mentioned in the listing
-                        TechTags = ExtractTechTags(hit.Description?.Text),
-                        Url = hit.WebPage ?? $"https://arbetsformedlingen.se/platsbanken/annonser/{hit.Id}",
-                        FetchedAt = DateTime.UtcNow,
-                        // Cache the listing for 6 hours, then fetch fresh data
-                        ExpiresAt = DateTime.UtcNow.AddHours(6)
-                    }).ToList();
+                        var techTags = ExtractTechTags(hit.Description?.Text);
+                        var studentSignals = ExtractStudentSignals(hit.Headline, hit.Description?.Text);
+                        var negativeSignals = ExtractNegativeSignals(hit.Headline, hit.Description?.Text);
+                        var relevanceScore = CalculateRelevanceScore(techTags, studentSignals, negativeSignals);
+
+                        return new CachedJob
+                        {
+                            Id = Guid.NewGuid(),
+                            ExternalId = hit.Id,
+                            Title = hit.Headline ?? string.Empty,
+                            Employer = hit.Employer?.Name ?? string.Empty,
+                            City = hit.WorkplaceAddress?.City,
+                            Description = hit.Description?.Text,
+                            TechTags = techTags,
+                            StudentSignals = studentSignals,
+                            NegativeSignals = negativeSignals,
+                            RelevanceScore = relevanceScore,
+                            Url = hit.WebPage ?? $"https://arbetsformedlingen.se/platsbanken/annonser/{hit.Id}",
+                            FetchedAt = DateTime.UtcNow,
+                            // Cache the listing for 6 hours, then fetch fresh data
+                            ExpiresAt = DateTime.UtcNow.AddHours(6)
+                        };
+                    })
+                    // Only keep jobs with a minimum relevance score
+                    .Where(job => job.RelevanceScore >= 20)
+                    .ToList();
 
                 allJobs.AddRange(filteredJobs);
 
@@ -89,31 +102,6 @@ public class JobSearchService
         }
 
         return allJobs;
-    }
-
-    private bool IsLiaJob(string? title, string? description)
-    {
-        var titleText = (title ?? string.Empty).ToLower();
-        var fullText = $"{title} {description}".ToLower();
-
-        // Match "lia" as a whole word — not part of "reliability" or "compliance"
-        bool liaInTitle = Regex.IsMatch(titleText, @"\blia\b") ||
-                          titleText.Contains("lärande i arbete") ||
-                          titleText.Contains("praktik") ||
-                          titleText.Contains("praktikant") ||
-                          titleText.Contains("internship");
-
-        // If the listing contains these words it is likely not a student position
-        var excludeKeywords = new[]
-        {
-            "senior", "erfaren", "minst 3 år", "minst 5 år",
-            "experienced", "at least 3 years", "at least 5 years"
-        };
-
-        bool isSenior = excludeKeywords.Any(k => fullText.Contains(k));
-
-        // Listing is relevant only if it has a LIA keyword AND is not a senior position
-        return liaInTitle && !isSenior;
     }
 
     private List<string> ExtractTechTags(string? description)
@@ -130,7 +118,7 @@ public class JobSearchService
             // Frontend
             "React", "Angular", "Vue", "TypeScript", "JavaScript", "HTML", "CSS",
             // Backend
-            "Java", "Python", "Node.js", "PHP", "Go", "Rust", "Kotlin",
+            "Java", "Spring", "Python", "Node.js", "PHP", "Go", "Rust", "Kotlin",
             // Database
             "SQL", "PostgreSQL", "MySQL", "MongoDB", "Redis", "SQLite",
             // Cloud & DevOps
@@ -146,6 +134,77 @@ public class JobSearchService
         }
 
         return tags;
+    }
+
+    private List<string> ExtractStudentSignals(string? title, string? description)
+    {
+        var text = $"{title} {description}".ToLower();
+        var signals = new List<string>();
+
+        // Positive signals indicating student-friendly positions
+        var studentKeywords = new[]
+        {
+            "praktik", "praktikant", "lia", "lärande i arbete",
+            "internship", "intern", "trainee", "junior",
+            "student", "graduate", "examensarbete", "thesis", "entry level"
+        };
+
+        foreach (var keyword in studentKeywords)
+        {
+            if (keyword == "lia")
+            {
+                if (Regex.IsMatch(text, @"\blia\b"))
+                    signals.Add(keyword);
+            }
+            else if (text.Contains(keyword))
+            {
+                signals.Add(keyword);
+            }
+        }
+
+        return signals;
+    }
+
+    private List<string> ExtractNegativeSignals(string? title, string? description)
+    {
+        var text = $"{title} {description}".ToLower();
+        var signals = new List<string>();
+
+        // Negative signals indicating senior-level positions
+        var negativeKeywords = new[]
+        {
+            "senior", "lead developer", "team lead", "architect",
+            "3+ years", "5+ years", "minst 3 år", "minst 5 år",
+            "several years", "flera års erfarenhet", "experienced"
+        };
+
+        foreach (var keyword in negativeKeywords)
+        {
+            if (text.Contains(keyword))
+                signals.Add(keyword);
+        }
+
+        return signals;
+    }
+
+    private int CalculateRelevanceScore(
+        List<string> techTags,
+        List<string> studentSignals,
+        List<string> negativeSignals)
+    {
+        var score = 0;
+
+        // Tech tags found = more relevant
+        score += techTags.Count * 5;
+
+        // Student signals boost score significantly
+        score += studentSignals.Count * 20;
+
+        // Negative signals reduce score
+        score -= negativeSignals.Count * 25;
+
+        // Keep score between 0 and 100
+        return Math.Clamp(score, 0, 100);
     }
 }
 
