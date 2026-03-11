@@ -26,19 +26,19 @@ public class JobsController : ControllerBase
             .AsQueryable();
 
         if (!string.IsNullOrEmpty(city))
-            query = query.Where(j => j.City != null && 
+            query = query.Where(j => j.City != null &&
                 j.City.ToLower().Contains(city.ToLower()));
 
         if (!string.IsNullOrEmpty(tech))
             query = query.Where(j => j.TechTags.Contains(tech));
 
         if (!string.IsNullOrEmpty(search))
-            query = query.Where(j => 
+            query = query.Where(j =>
                 j.Title.ToLower().Contains(search.ToLower()) ||
                 j.Employer.ToLower().Contains(search.ToLower()));
 
         var jobs = await query
-            .OrderByDescending(j => j.FetchedAt)
+            .OrderByDescending(j => j.RelevanceScore)
             .Select(j => new
             {
                 j.Id,
@@ -47,6 +47,9 @@ public class JobsController : ControllerBase
                 j.Employer,
                 j.City,
                 j.TechTags,
+                j.StudentSignals,
+                j.NegativeSignals,
+                j.RelevanceScore,
                 j.Url,
                 j.FetchedAt
             })
