@@ -75,7 +75,13 @@ public class JobSearchService
                             ExternalId = hit.Id,
                             Title = hit.Headline ?? string.Empty,
                             Employer = hit.Employer?.Name ?? string.Empty,
-                            City = hit.WorkplaceAddress?.City,
+                            City = hit.WorkplaceAddress?.City != null 
+                                ? System.Globalization.CultureInfo.CurrentCulture.TextInfo
+                                    .ToTitleCase(hit.WorkplaceAddress.City.ToLower())
+                                : hit.WorkplaceAddress?.Municipality != null
+                                ? System.Globalization.CultureInfo.CurrentCulture.TextInfo
+                                    .ToTitleCase(hit.WorkplaceAddress.Municipality.ToLower())
+                                : null,
                             Description = hit.Description?.Text,
                             TechTags = techTags,
                             StudentSignals = studentSignals,
@@ -225,9 +231,15 @@ public class JobHit
 {
     public string Id { get; set; } = string.Empty;
     public string? Headline { get; set; }
+    
+    [System.Text.Json.Serialization.JsonPropertyName("webpage_url")]
     public string? WebPage { get; set; }
+    
     public EmployerInfo? Employer { get; set; }
+    
+    [System.Text.Json.Serialization.JsonPropertyName("workplace_address")]
     public WorkplaceAddress? WorkplaceAddress { get; set; }
+    
     public DescriptionInfo? Description { get; set; }
 }
 
@@ -238,7 +250,9 @@ public class EmployerInfo
 
 public class WorkplaceAddress
 {
+    public string? Municipality { get; set; }
     public string? City { get; set; }
+    public string? Region { get; set; }
 }
 
 public class DescriptionInfo
