@@ -19,7 +19,6 @@ public class UsersController : ControllerBase
         _db = db;
     }
 
-    // Get or create user profile on first login
     [HttpPost("me")]
     public async Task<IActionResult> GetOrCreateProfile()
     {
@@ -31,7 +30,9 @@ public class UsersController : ControllerBase
         var email = User.FindFirstValue(ClaimTypes.Email)
                     ?? User.FindFirstValue("email") ?? string.Empty;
 
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == Guid.Parse(supabaseId));
+        var user = await _db.Users
+            .Include(u => u.TechStacks)
+            .FirstOrDefaultAsync(u => u.Id == Guid.Parse(supabaseId));
 
         if (user == null)
         {
@@ -46,10 +47,16 @@ public class UsersController : ControllerBase
             await _db.SaveChangesAsync();
         }
 
-        return Ok(user);
+        return Ok(new
+        {
+            user.Id,
+            user.Email,
+            user.Name,
+            user.City,
+            TechStacks = user.TechStacks.Select(t => t.Tech).ToList()
+        });
     }
 
-    // Update user profile
     [HttpPut("me")]
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
     {
@@ -66,20 +73,35 @@ public class UsersController : ControllerBase
 
         user.Name = request.Name ?? user.Name;
         user.City = request.City;
-        user.School = request.School;
-        user.LiaPeriod = request.LiaPeriod;
 
-        // Update tech stacks
         if (request.TechStacks != null)
         {
-            _db.UserTechStacks.RemoveRange(user.TechStacks);
-            user.TechStacks = request.TechStacks
+            var existing = await _db.UserTechStacks
+                .Where(t => t.UserId == user.Id)
+                .ToListAsync();
+            _db.UserTechStacks.RemoveRange(existing);
+            await _db.SaveChangesAsync();
+
+            var newTechs = request.TechStacks
                 .Select(t => new UserTechStack { Id = Guid.NewGuid(), UserId = user.Id, Tech = t })
                 .ToList();
+            await _db.UserTechStacks.AddRangeAsync(newTechs);
         }
 
         await _db.SaveChangesAsync();
-        return Ok(user);
+
+        var updatedUser = await _db.Users
+            .Include(u => u.TechStacks)
+            .FirstAsync(u => u.Id == user.Id);
+
+        return Ok(new
+        {
+            updatedUser.Id,
+            updatedUser.Email,
+            updatedUser.Name,
+            updatedUser.City,
+            TechStacks = updatedUser.TechStacks.Select(t => t.Tech).ToList()
+        });
     }
 }
 
