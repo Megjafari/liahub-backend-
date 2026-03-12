@@ -89,6 +89,9 @@ public class JobSearchService
                     })
                     // Only keep jobs with a minimum relevance score
                     .Where(job => job.RelevanceScore >= 20)
+                    .Where(job => !job.Title.Contains("senior", StringComparison.OrdinalIgnoreCase))
+                    .Where(job => !job.Title.Contains("lead", StringComparison.OrdinalIgnoreCase))
+                    .Where(job => !job.Title.Contains("architect", StringComparison.OrdinalIgnoreCase))
                     .ToList();
 
                 allJobs.AddRange(filteredJobs);
@@ -145,8 +148,9 @@ public class JobSearchService
         var studentKeywords = new[]
         {
             "praktik", "praktikant", "lia", "lärande i arbete",
-            "internship", "intern", "trainee", "junior",
-            "student", "graduate", "examensarbete", "thesis", "entry level"
+            "internship", "intern", "trainee",
+            "student", "graduate", "examensarbete", "thesis", "entry level",
+            "nyexaminerad", "nyutexaminerad", "fresh graduate"
         };
 
         foreach (var keyword in studentKeywords)
@@ -161,6 +165,9 @@ public class JobSearchService
                 signals.Add(keyword);
             }
         }
+                // Only extract "junior" from title, not description
+        if (!string.IsNullOrEmpty(title) && title.ToLower().Contains("junior"))
+            signals.Add("junior");
 
         return signals;
     }
