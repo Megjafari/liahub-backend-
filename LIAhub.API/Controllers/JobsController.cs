@@ -19,7 +19,8 @@ public class JobsController : ControllerBase
     public async Task<IActionResult> GetJobs(
         [FromQuery] string? city,
         [FromQuery] string? tech,
-        [FromQuery] string? search)
+        [FromQuery] string? search,
+        [FromQuery] string? skills)
     {
         var query = _db.CachedJobs
             .Where(j => j.ExpiresAt > DateTime.UtcNow)
@@ -39,7 +40,31 @@ public class JobsController : ControllerBase
 
         var jobs = await query
             .OrderByDescending(j => j.RelevanceScore)
-            .Select(j => new
+            .ToListAsync();
+
+        // Parse user skills from query param
+        var userSkills = string.IsNullOrEmpty(skills)
+            ? new List<string>()
+            : skills.Split(',').Select(s => s.Trim()).Where(s => !string.IsNullOrEmpty(s)).ToList();
+
+        var result = jobs.Select(j =>
+        {
+            var matchedSkills = userSkills.Any()
+                ? j.TechTags.Intersect(userSkills, StringComparer.OrdinalIgnoreCase).ToList()
+                : new List<string>();
+
+            var missingSkills = userSkills.Any()
+                ? userSkills.Except(j.TechTags, StringComparer.OrdinalIgnoreCase).ToList()
+                : new List<string>();
+
+            var matchScore = userSkills.Any()
+                ? Math.Round((double)matchedSkills.Count / userSkills.Count, 2)
+                : 0.0;
+
+            var locationMatched = !string.IsNullOrEmpty(city) && !string.IsNullOrEmpty(j.City) &&
+                j.City.Contains(city, StringComparison.OrdinalIgnoreCase);
+
+            return new
             {
                 j.Id,
                 j.ExternalId,
@@ -51,11 +76,18 @@ public class JobsController : ControllerBase
                 j.NegativeSignals,
                 j.RelevanceScore,
                 j.Url,
-                j.FetchedAt
-            })
-            .ToListAsync();
+                j.FetchedAt,
+                MatchScore = matchScore,
+                MatchedSkills = matchedSkills,
+                MissingSkills = missingSkills,
+                LocationMatched = locationMatched
+            };
+        })
+        .OrderByDescending(j => j.MatchScore)
+        .ThenByDescending(j => j.RelevanceScore)
+        .ToList();
 
-        return Ok(jobs);
+        return Ok(result);
     }
 
     [HttpGet("{id}")]
