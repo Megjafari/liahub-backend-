@@ -13,6 +13,7 @@ public class CachedJob
     public List<string> NegativeSignals { get; set; } = new();
     public int RelevanceScore { get; set; }
     public string Url { get; set; } = string.Empty;
+    public string? WorkMode { get; set; }
     public DateTime FetchedAt { get; set; } = DateTime.UtcNow;
     public DateTime ExpiresAt { get; set; }
 }

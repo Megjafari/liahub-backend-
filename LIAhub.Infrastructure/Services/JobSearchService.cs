@@ -68,6 +68,7 @@ public class JobSearchService
                         var studentSignals = ExtractStudentSignals(hit.Headline, hit.Description?.Text);
                         var negativeSignals = ExtractNegativeSignals(hit.Headline, hit.Description?.Text);
                         var relevanceScore = CalculateRelevanceScore(techTags, studentSignals, negativeSignals);
+                        var workMode = ExtractWorkMode(hit.Headline, hit.Description?.Text);
 
                         return new CachedJob
                         {
@@ -89,6 +90,7 @@ public class JobSearchService
                             RelevanceScore = relevanceScore,
                             Url = hit.WebPage ?? $"https://arbetsformedlingen.se/platsbanken/annonser/{hit.Id}",
                             FetchedAt = DateTime.UtcNow,
+                            WorkMode = workMode,
                             // Cache the listing for 6 hours, then fetch fresh data
                             ExpiresAt = DateTime.UtcNow.AddHours(6)
                         };
@@ -218,6 +220,19 @@ public class JobSearchService
 
         // Keep score between 0 and 100
         return Math.Clamp(score, 0, 100);
+    }
+    
+    private string ExtractWorkMode(string? title, string? description)
+    {
+        var text = $"{title} {description}".ToLower();
+
+        if (text.Contains("remote"))
+            return "Remote";
+
+        if (text.Contains("hybrid"))
+            return "Hybrid";
+
+        return "På plats";
     }
 }
 
