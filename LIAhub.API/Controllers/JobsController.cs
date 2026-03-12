@@ -31,7 +31,10 @@ public class JobsController : ControllerBase
                 j.City.ToLower().Contains(city.ToLower()));
 
         if (!string.IsNullOrEmpty(tech))
-            query = query.Where(j => j.TechTags.Contains(tech));
+            {
+                var techs = tech.Split(',').Select(t => t.Trim()).Where(t => !string.IsNullOrEmpty(t)).ToList();
+                query = query.Where(j => techs.Any(t => j.TechTags.Contains(t)));
+            }
 
         if (!string.IsNullOrEmpty(search))
             query = query.Where(j =>
