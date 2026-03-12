@@ -4,6 +4,7 @@ using LIAhub.Infrastructure.BackgroundJobs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Resend;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,6 +18,11 @@ builder.Services.AddScoped<NotificationService>();
 builder.Services.Configure<ResendClientOptions>(options =>
     options.ApiToken = builder.Configuration["Resend:ApiKey"]!);
 builder.Services.AddTransient<IResend, ResendClient>();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+    });
 
 // Background Jobs
 builder.Services.AddHostedService<JobFetcherService>();
@@ -38,7 +44,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         options.RequireHttpsMetadata = false;
     });
 
-builder.Services.AddAuthorization();
 
 // CORS - allow React frontend
 builder.Services.AddCors(options =>
