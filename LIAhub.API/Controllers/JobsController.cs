@@ -71,6 +71,7 @@ public class JobsController : ControllerBase
                 j.Title,
                 j.Employer,
                 j.City,
+                j.WorkMode, 
                 j.TechTags,
                 j.StudentSignals,
                 j.NegativeSignals,
