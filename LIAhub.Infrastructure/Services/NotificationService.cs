@@ -43,15 +43,33 @@ public class NotificationService
 
     private async Task SendEmailAsync(string email, List<CachedJob> jobs)
     {
-        var jobList = string.Join("\n", jobs.Select(j =>
-            $"- {j.Title} hos {j.Employer} {(j.City != null ? $"i {j.City}" : "")} → {j.Url}"));
+        var platformUrl = "https://liahub.meghdadjafari.dev";
+
+        var jobList = string.Join("\n\n", jobs.Select(j =>
+            $"{j.Title} – {j.Employer}{(j.City != null ? $" i {j.City}" : "")}\n{j.Url}"));
+
+        var body = $"""
+            Hej!
+
+            Vi hittade {jobs.Count} nya jobb som matchar din tech stack på LIAHub.
+
+            Här är de senaste matchningarna:
+
+            {jobList}
+
+            Se alla matchningar:
+            {platformUrl}
+
+            Lycka till med ditt LIA-sökande!
+            / LIAHub
+            """;
 
         var message = new EmailMessage
         {
-            From = "LIAhub <noreply@liahub.se>",
+            From = "LIAHub <noreply@liahub.meghdadjafari.dev>",
             To = { email },
-            Subject = $" {jobs.Count} nya LIA-annonser matchar din profil!",
-            TextBody = $"Hej!\n\nDet finns {jobs.Count} nya LIA-annonser som matchar din profil:\n\n{jobList}\n\nLycka till!\n/ LIAhub"
+            Subject = $"🔎 {jobs.Count} nya jobb matchar din tech stack",
+            TextBody = body
         };
 
         await _resend.EmailSendAsync(message);
