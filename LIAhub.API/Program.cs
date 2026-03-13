@@ -52,7 +52,7 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins(
             "http://localhost:5173",
-            "https://liahub.vercel.app"
+            "https://liahub.meghdadjafari.dev"
         )
         .AllowAnyHeader()
         .AllowAnyMethod();
