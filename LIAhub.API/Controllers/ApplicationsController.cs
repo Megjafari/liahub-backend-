@@ -56,8 +56,8 @@ public class ApplicationsController : ControllerBase
             ContactName = request.ContactName,
             ContactEmail = request.ContactEmail,
             ContactPhone = request.ContactPhone,
-            AppliedAt = DateTime.UtcNow,
-            Status = "Sökt"
+            Status = "Sökt",
+            AppliedAt = request.AppliedAt ?? DateTime.UtcNow
         };
 
         await _db.Applications.AddAsync(application);
@@ -127,6 +127,7 @@ public class CreateApplicationRequest
     public string? ContactName { get; set; }
     public string? ContactEmail { get; set; }
     public string? ContactPhone { get; set; }
+    public DateTime? AppliedAt { get; set; }
 }
 
 public class UpdateApplicationRequest
