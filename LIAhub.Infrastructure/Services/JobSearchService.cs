@@ -93,7 +93,9 @@ public class JobSearchService
                             WorkMode = workMode,
                             // Cache the listing for 6 hours, then fetch fresh data
                             ExpiresAt = DateTime.UtcNow.AddHours(6),
-                            PublishedAt = hit.PublicationDate,
+                            PublishedAt = hit.PublicationDate.HasValue 
+                                ? DateTime.SpecifyKind(hit.PublicationDate.Value, DateTimeKind.Utc)
+                                : null,
                         };
                     })
                     // Only keep jobs with a minimum relevance score
