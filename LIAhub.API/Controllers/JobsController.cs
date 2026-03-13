@@ -81,6 +81,7 @@ public class JobsController : ControllerBase
                 j.RelevanceScore,
                 j.Url,
                 j.FetchedAt,
+                j.PublishedAt,
                 MatchScore = matchScore,
                 MatchedSkills = matchedSkills,
                 MissingSkills = missingSkills,

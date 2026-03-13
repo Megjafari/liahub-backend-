@@ -16,4 +16,5 @@ public class CachedJob
     public string? WorkMode { get; set; }
     public DateTime FetchedAt { get; set; } = DateTime.UtcNow;
     public DateTime ExpiresAt { get; set; }
+    public DateTime? PublishedAt { get; set; }
 }

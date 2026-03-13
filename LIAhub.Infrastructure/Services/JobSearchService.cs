@@ -92,7 +92,8 @@ public class JobSearchService
                             FetchedAt = DateTime.UtcNow,
                             WorkMode = workMode,
                             // Cache the listing for 6 hours, then fetch fresh data
-                            ExpiresAt = DateTime.UtcNow.AddHours(6)
+                            ExpiresAt = DateTime.UtcNow.AddHours(6),
+                            PublishedAt = hit.PublicationDate,
                         };
                     })
                     // Only keep jobs with a minimum relevance score
@@ -256,6 +257,9 @@ public class JobHit
     public WorkplaceAddress? WorkplaceAddress { get; set; }
     
     public DescriptionInfo? Description { get; set; }
+
+    [System.Text.Json.Serialization.JsonPropertyName("publication_date")]
+    public DateTime? PublicationDate { get; set; }  
 }
 
 public class EmployerInfo
