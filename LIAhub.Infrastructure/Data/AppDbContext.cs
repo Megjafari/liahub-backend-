@@ -1,5 +1,7 @@
 using LIAhub.Core.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Design;
+using Microsoft.Extensions.Configuration;
 
 namespace LIAhub.Infrastructure.Data;
 
@@ -43,5 +45,24 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<CachedJob>()
             .Property(j => j.TechTags)
             .HasColumnType("text[]");
+    }
+
+    public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
+    {
+        public AppDbContext CreateDbContext(string[] args)
+        {
+            var basePath = Path.Combine(Directory.GetCurrentDirectory(), "../LIAhub.API");
+
+            var configuration = new ConfigurationBuilder()
+                .SetBasePath(basePath)
+                .AddJsonFile("appsettings.json", optional: true)
+                .AddEnvironmentVariables()
+                .Build();
+
+            var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
+            optionsBuilder.UseNpgsql(configuration.GetConnectionString("DefaultConnection"));
+
+            return new AppDbContext(optionsBuilder.Options);
+        }
     }
 }
