@@ -20,7 +20,6 @@ public class NotificationService
     {
         if (!newJobs.Any()) return;
 
-        // Get all users with active notifications
         var users = await _db.Users
             .Include(u => u.TechStacks)
             .Include(u => u.NotificationSetting)
@@ -29,7 +28,6 @@ public class NotificationService
 
         foreach (var user in users)
         {
-            // Find jobs matching user's tech stacks
             var matchingJobs = newJobs
                 .Where(job => !user.TechStacks.Any() ||
                     job.TechTags.Any(tag => user.TechStacks.Any(t => t.Tech == tag)))
@@ -37,7 +35,15 @@ public class NotificationService
 
             if (!matchingJobs.Any()) continue;
 
-            await SendEmailAsync(user.Email, matchingJobs);
+            try
+            {
+                await SendEmailAsync(user.Email, matchingJobs);
+            }
+            catch (Exception ex)
+            {
+                // Log and continue -- email failure should not break job fetching
+                Console.Error.WriteLine($"Failed to send email to {user.Email}: {ex.Message}");
+            }
         }
     }
 
